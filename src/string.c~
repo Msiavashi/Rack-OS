@@ -1,0 +1,60 @@
+#include "string.h"
+
+size_t strlen(const char * str){
+	int len = 0;
+	while(str[len++]);
+	return len-1;
+}
+
+int strcmp(const char * str1, const char * str2)
+{
+	int i = 0;
+	while((str1[i] == str2[i]) && (str2[i] != '\0')) i++;
+	return str1[i] - str2[i];
+}
+
+void * memcpy(void * destination, const void * source, size_t num)
+{
+	char * dest = (char *) destination;
+	const char * src = (const char *) source;
+	while(num --> 0)
+	{
+		dest[num] = src[num];
+	}
+	return destination;
+}
+
+void * memset(void * ptr, int value, size_t num)
+{
+	unsigned char * pointer = (unsigned char *) ptr;
+	while(num-->0)
+	{
+		pointer[num] = (unsigned char) value;
+	}
+	return ptr;
+}
+
+char * strcpy(char * destination, const char * source)
+{
+	char * dest = destination;
+	while((*s1++ = *s2++));
+	return dest;
+}
+
+char * strcat(char * destination, const char * source)
+{
+	char * dest = destination;
+	if(destination)
+	{
+		do
+		{
+			destination++;
+		}while(*destination);
+		do
+		{
+			*destination++ = *source++;
+		}while(*source);
+	}
+	return dest;
+}
+

@@ -1,0 +1,69 @@
+#include "file.h"
+#include "string.h"
+#include "fs.h"
+
+// currently 5 Files can be open simultaneously. Change MAX_OPEN_FILES in the header for more concurrency.
+static FILE open_files[MAX_OPEN_FILES];
+static int open_files_idx;
+
+FILE * fopen(const char * filename, const char * mode)
+{
+	if(!strcmp(mode, "r"))
+	{
+		int i = 0;
+		struct dirent *node = 0;
+		while ( (node = readdir_fs(fs_root, i)) != 0)
+		{
+		    fs_node_t *fsnode = finddir_fs(fs_root, node->name);
+			// If file.
+		    if ((fsnode->flags&0x7) != FS_DIRECTORY)
+		    {
+		    	// If matched.
+		    	if(!strcmp(filename, fsnode->name))
+		    	{
+		    		if(open_files_idx < MAX_OPEN_FILES)
+		    		{
+						open_files[open_files_idx].file = fsnode;
+						open_files[open_files_idx].file_ptr = 0;
+						// Return the file.
+				    	return &open_files[open_files_idx++];
+				    }
+				    else
+				    {
+				    	return NULL;
+				    }
+		        }
+		    }
+		    i++;
+		}
+	}
+    // Not found.
+	return NULL;
+}
+
+// Something simple to work for now.
+int fclose(FILE * stream)
+{
+	if(stream)
+	{
+		--open_files_idx;
+		// On Success.
+		return 0;
+	}
+	// On Failure.
+	return EOF;
+}
+
+int fgetc(FILE * stream)
+{
+	int character;
+	u32int sz = read_fs(stream->file, file->file_ptr, file->file_ptr+1, &character);
+	if(sz)
+	{
+		
+		return character;
+	}
+	// On Failure.
+	return EOF;
+}
+

@@ -1,0 +1,292 @@
+#include "stdio.h"
+#include "monitor.h"
+#include "ctype.h"
+#include "debug.h"
+#include "fs.h"
+#include "string.h"
+
+char buf[BUFSIZ];
+int buf_idx;
+
+// currently 5 Files can be opened simultaneously. Change MAX_OPEN_FILES in the header for more concurrency.
+static FILE open_files[MAX_OPEN_FILES];
+static int open_files_idx;
+
+
+
+FILE * fopen(const char * filename, const char * mode)
+{
+	if(!strcmp(mode, "r"))
+	{
+		int i = 0;
+		struct dirent *node = 0;
+		while ( (node = readdir_fs(fs_root, i)) != 0)
+		{
+		    fs_node_t *fsnode = finddir_fs(fs_root, node->name);
+			// If file.
+		    if ((fsnode->flags&0x7) != FS_DIRECTORY)
+		    {
+		    	// If matched.
+		    	if(!strcmp(filename, fsnode->name))
+		    	{
+		    		if(open_files_idx < MAX_OPEN_FILES)
+		    		{
+						open_files[open_files_idx].file = fsnode;
+						open_files[open_files_idx].pos_indicator = 0;
+						open_files[open_files_idx].err_indicator = 0;
+						open_files[open_files_idx].eof_indicator = 0;
+						// Return the file.
+				    	return &open_files[open_files_idx++];
+				    }
+				    else
+				    {
+				    	return NULL;
+				    }
+		        }
+		    }
+		    i++;
+		}
+	}
+    // Not found.
+	return NULL;
+}
+
+// Something simple to work for now. Opening and Closing must be done in a LIFO way.
+int fclose(FILE * stream)
+{
+	if(stream)
+	{
+		close_fs(stream->file);
+		--open_files_idx;
+		// On Success.
+		return 0;
+	}
+	// On Failure.
+	return EOF;
+}
+
+int fgetc(FILE * stream)
+{
+	int character;
+	u32int sz = read_fs(stream->file, stream->pos_indicator, 1, &character);
+	if(sz)
+	{
+		stream->pos_indicator++;
+		/* To be implemented later. 
+		  Set Stream Error Indicator
+		   Set Stream EOF Indicator
+		/***************************/
+		return character;
+	}
+	// On Failure.
+	return EOF;
+}
+
+long int ftell(FILE * stream)
+{
+	if(stream)
+	{
+		return stream->pos_indicator;
+	}
+	return -1L;
+}
+
+void rewind(FILE * stream)
+{
+	if(stream)
+	{
+		stream->pos_indicator = 0;
+		stream->err_indicator = 0;
+		stream->eof_indicator = 0;
+	}
+}
+
+
+int putchar(int character)
+{
+	putch((unsigned char)character);
+	return character;
+}
+
+int getchar()
+{
+	static buf_rd_idx = 0;
+	if(buf_idx == buf_rd_idx)
+	{
+		buf_idx = buf_rd_idx = 0;
+	}
+	if(buf_idx == 0)
+	{
+		{
+			char c;
+			do
+			{
+				c = getch();
+				if(c)
+				{
+					putchar(c);
+					buf[buf_idx++] = c;
+				}
+			}while((c != '\n') && (buf_idx < BUFSIZ));
+		}
+	}
+	return buf[buf_rd_idx++];
+}
+
+int puts(const char * str){
+	int index = 0;
+	while(str[index])
+	{
+		putchar(str[index++]);
+	}
+	return index;
+}
+
+char * gets(char * str){
+	char c;
+	int index = 0;
+	do
+	{
+		c = getchar();
+		str[index++] = c;
+	}while(c != '\n');
+	str[index] = '\0';
+	return str;
+}
+
+int printf(const char * format, ...){
+	int written_chars = 0, index = 0;
+	void * args = ((void *)&format) + sizeof(const char *);
+	while(format[index]){
+		if(format[index] == '%'){
+			index++;
+			switch(format[index]){
+				case 'X':
+					{
+						char symbols[] = {
+										'0', '1', '2', '3', '4', '5', '6',
+										'7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+										};
+						byte num = *((byte *)args);
+						putchar(symbols[(num & 0xF0) >> 4]);
+						putchar(symbols[num & 0x0F]);
+					}
+					// Bear Memory Alignment in Mind...
+					args += sizeof(void *);
+					break;
+				case 'x':
+					{
+						char symbols[] = {
+										'0', '1', '2', '3', '4', '5', '6',
+										'7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+										};
+						byte num = *((byte *)args);
+						putchar(symbols[(num & 0xF0) >> 4]);
+						putchar(symbols[num & 0x0F]);
+					}
+					// Bear Memory Alignment in Mind...
+					args += sizeof(void *);
+					break;
+				case 'c':
+					putchar(*((char *)args));
+					// Bear Memory Alignment in Mind...
+					args += sizeof(void *);
+					break;
+				case 'd':
+					{
+						int num = *((int *)args);
+						int reverse_num = 0, temp_num = num;
+						int isZero = 0;
+						if(num == 0){
+							putchar('0');
+						}else if(num<0){
+							putchar('-');
+							written_chars++;
+							num = temp_num = -num;
+						}
+						while(num){
+							reverse_num = reverse_num*10 + (num%10);
+							num /= 10;
+						}
+						while(reverse_num){
+							putchar((reverse_num%10) + '0');
+							written_chars++;
+							reverse_num /= 10;
+						}
+						while((temp_num != 0) && (temp_num%10==0)){
+							putchar('0');
+							written_chars++;
+							temp_num /= 10;
+						}
+					}
+					args += sizeof(int);
+					break;
+				case 's':
+					{
+						char ** str = (char **) args;
+						written_chars += puts((const char *)(*str));
+					}
+					args += sizeof(char *);
+					break;
+				default:
+					break;
+			}
+		}else{
+			putchar(format[index]);
+			written_chars++;
+		}
+		index++;
+	}
+	return written_chars;
+}
+
+int scanf(const char * format, ...){
+	int read_items = 0, format_index = 0, buffer_index = 0;
+	char buffer[BUFSIZ] = {0};
+	void * args = ((void *)&format) + sizeof(const char *);
+	gets(buffer);
+	while(format[format_index]){
+		if(format[format_index] == '%'){
+			format_index++;
+			switch(format[format_index]){
+				case 'd':
+					{
+						int num = 0;
+						int isNegative = 0;
+						if(buffer[buffer_index] == '-'){
+							isNegative = 1;
+							buffer_index++;
+						}
+						while(isdigit(buffer[buffer_index])){
+							num *= 10;
+							num += (buffer[buffer_index]-'0');
+							buffer_index++;
+						}
+						if(isNegative){
+							num *= -1;
+						}
+						(*(*((int **) args))) = num; 
+					}
+					args += sizeof(int *);
+					read_items++;
+					break;
+				/*
+				case 's':
+					{
+						char ** str = (char **) args;
+						puts((const char *)(*str));
+					}
+					args = ((char **)args) + 1;
+					break;
+				/**/
+				default:
+					break;
+			}
+			format_index++;
+		}else{
+			if(buffer[buffer_index++] != format[format_index++])
+				return read_items;
+		}
+	}
+	return read_items;
+}

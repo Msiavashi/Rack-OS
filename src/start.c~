@@ -1,0 +1,19 @@
+#include "start.h"
+#include "monitor.h"
+
+int start() {
+	// this is your main :)
+	char c;	
+
+	// keyboard test
+	while(1) {
+		c = getch();
+		putch(c);
+		putch('\t');
+	}
+
+	return 0;
+}
+
+
+

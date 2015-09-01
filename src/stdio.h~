@@ -1,0 +1,36 @@
+#ifndef STDIO_H
+#define STDIO_H
+
+#include "fs.h"
+
+#define NULL 0
+#define EOF -1
+#define TRUE 1
+#define FALSE 0
+
+#define BUFSIZ 256
+#define MAX_OPEN_FILES 5
+
+typedef unsigned char byte;
+
+typedef struct
+{
+	fs_node_t * file;
+	long pos_indicator;
+	int err_indicator;
+} FILE;
+
+
+int getchar(void);
+int putchar(int character);
+int printf(const char * format, ...);
+int scanf(const char * format, ...);
+int puts(const char * str);
+char * gets(char * str);
+FILE * fopen(const char * filename, const char * mode);
+int fclose(FILE * stream);
+long int ftell(FILE * stream);
+void rewind(FILE * stream);
+
+
+#endif

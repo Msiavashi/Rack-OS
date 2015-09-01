@@ -1,0 +1,98 @@
+#include "stdio.h"
+#include "./../fs.h"
+/*
+* Written by Ahmad Siavashi(a.siavosh@yahoo.com), March 2015.
+* All functions need enhancements; Current dummy versions help you start your work.
+*/
+
+// Currently 5 files can be opened simultaneously. Change MAX_OPEN_FILES in the header for more concurrency(if needed).
+static FILE open_files[MAX_OPEN_FILES];
+static int open_files_idx = 0;
+
+// Only read mode for now.
+FILE * fopen(const char * filename, const char * mode)
+{
+	if(!strcmp(mode, "r"))
+	{
+		int i = 0;
+		struct dirent *node = 0;
+		while ( (node = readdir_fs(fs_root, i)) != 0)
+		{
+		    fs_node_t *fsnode = finddir_fs(fs_root, node->name);
+			// If file.
+		    if ((fsnode->flags&0x7) != FS_DIRECTORY)
+		    {
+		    	// If matched.
+		    	if(!strcmp(filename, fsnode->name))
+		    	{
+		    		if(open_files_idx < MAX_OPEN_FILES)
+		    		{
+						open_files[open_files_idx].file = fsnode;
+						open_files[open_files_idx].pos_indicator = 0;
+						open_files[open_files_idx].err_indicator = 0;
+						open_files[open_files_idx].eof_indicator = 0;
+						// Return the file.
+				    	return &open_files[open_files_idx++];
+				    }
+				    else
+				    {
+				    	return NULL;
+				    }
+		        }
+		    }
+		    i++;
+		}
+	}
+    // Not found.
+	return NULL;
+}
+
+// Something simple to work for now. Opening and Closing must be done in a LIFO way.
+int fclose(FILE * stream)
+{
+	if(stream)
+	{
+		close_fs(stream->file);
+		--open_files_idx;
+		// On Success.
+		return 0;
+	}
+	// On Failure.
+	return EOF;
+}
+
+int fgetc(FILE * stream)
+{
+	int character;
+	u32int sz = read_fs(stream->file, stream->pos_indicator, 1, (u8int *) &character);
+	if(sz)
+	{
+		stream->pos_indicator++;
+		/* To be implemented later. 
+		  Set Stream Error Indicator
+		   Set Stream EOF Indicator
+		/***************************/
+		return character;
+	}
+	// On Failure.
+	return EOF;
+}
+
+long int ftell(FILE * stream)
+{
+	if(stream)
+	{
+		return stream->pos_indicator;
+	}
+	return -1L;
+}
+
+void rewind(FILE * stream)
+{
+	if(stream)
+	{
+		stream->pos_indicator = 0;
+		stream->err_indicator = 0;
+		stream->eof_indicator = 0;
+	}
+}

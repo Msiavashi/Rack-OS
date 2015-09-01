@@ -1,0 +1,7 @@
+
+
+---- File System ----
+If you want to include a file in your file system then run the make_initrd program in terminal and give it command-line arguemnts
+in the following pattern:
+./make_initrd [file address in your computer] [file name in Rack OS file system]
+and so you can give as many files as you wish.
